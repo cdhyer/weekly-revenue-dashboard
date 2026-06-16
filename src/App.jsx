@@ -13,6 +13,35 @@ function CardContent({ children, className = "" }) {
   return <div className={className}>{children}</div>;
 }
 
+const GOALS_BY_COLUMN_INDEX = {
+  3: 390600,
+  5: 1013275,
+  6: 56000,
+  7: 6000,
+  8: 7500,
+  10: 27500,
+  12: 165000,
+  14: 9500,
+  16: 6000,
+  18: 50000,
+  19: 165000,
+  20: 37500,
+  21: 7500,
+  22: 9000,
+  23: 40000,
+  24: 12500,
+  26: 215000,
+  28: 75000,
+  30: 34000,
+  31: 45000,
+  32: 25000,
+  34: 40000,
+  35: 18000,
+  37: 37000,
+  39: 35000,
+  41: 130000,
+};
+
 export default function WeeklyRevenueDashboard() {
   const [rows, setRows] = useState([]);
   const [headers, setHeaders] = useState([]);
@@ -29,6 +58,11 @@ export default function WeeklyRevenueDashboard() {
       maximumFractionDigits: 2,
     });
     return n < 0 ? `-${formatted}` : formatted;
+  };
+
+  const percent = (value) => {
+    if (value == null || Number.isNaN(value)) return "-";
+    return `${value.toFixed(1)}%`;
   };
 
   const normalize = (value) => String(value ?? "").trim().toLowerCase();
@@ -162,12 +196,10 @@ export default function WeeklyRevenueDashboard() {
 
     const categoryIndexes = [];
 
-    // Columns C through AP
     for (let i = 2; i <= 41; i += 1) {
       if (headers[i]) categoryIndexes.push(i);
     }
 
-    // Column AQ
     const totalIndex = 42;
 
     const years = [...new Set(rows.map((row) => row.year))]
@@ -181,10 +213,16 @@ export default function WeeklyRevenueDashboard() {
 
     const buildCategory = (index) => {
       const currentTotal = toNumber(selected.raw[index]);
+      const goal = GOALS_BY_COLUMN_INDEX[index] ?? null;
+      const toGoal = goal == null ? null : currentTotal - goal;
+      const percentToGoal = goal ? (currentTotal / goal) * 100 : null;
 
       return {
         name: headers[index],
         currentTotal,
+        goal,
+        toGoal,
+        percentToGoal,
         comparisons: years.map((year) => {
           const sameDaysRow = findRow(year, selected.daysOut);
           const sameDaysTotal = sameDaysRow
@@ -374,11 +412,12 @@ export default function WeeklyRevenueDashboard() {
                 alignItems: "start",
               }}
             >
-              {dashboard.categories.map((category) => (
+              {dashboard.categories.map((category, index) => (
                 <CategoryCard
-                  key={category.name}
+                  key={`${category.name}-${index}`}
                   category={category}
                   money={money}
+                  percent={percent}
                 />
               ))}
             </div>
@@ -389,6 +428,7 @@ export default function WeeklyRevenueDashboard() {
                 <CategoryCard
                   category={dashboard.totals}
                   money={money}
+                  percent={percent}
                   featured
                 />
               </div>
@@ -417,7 +457,7 @@ export default function WeeklyRevenueDashboard() {
   );
 }
 
-function CategoryCard({ category, money, featured = false }) {
+function CategoryCard({ category, money, percent, featured = false }) {
   const amountStyle = (amount, isComparison = false) => {
     if (amount == null) return { color: "#999" };
 
@@ -478,6 +518,29 @@ function CategoryCard({ category, money, featured = false }) {
         >
           2026: {money(category.currentTotal)}
         </div>
+
+        {category.goal != null && (
+          <div
+            style={{
+              marginTop: "14px",
+              display: "flex",
+              justifyContent: "center",
+              gap: "18px",
+              flexWrap: "wrap",
+              fontSize: "17px",
+              fontWeight: "800",
+            }}
+          >
+            <div>Goal: {money(category.goal)}</div>
+            <div>
+              To Goal:{" "}
+              <span style={amountStyle(category.toGoal, true)}>
+                {money(category.toGoal)}
+              </span>
+            </div>
+            <div>{percent(category.percentToGoal)} of goal</div>
+          </div>
+        )}
       </div>
 
       <div style={{ overflowX: "auto" }}>
